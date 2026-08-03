@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 
 import pulp
@@ -21,7 +22,7 @@ class PurchaseLine:
 class PurchaseResult:
     purchase_list: list[PurchaseLine]
     total_volume_m3: float
-    mineral_totals: dict[int, float]
+    mineral_totals: dict[int, int]
 
 
 def solve_purchase_list(
@@ -85,7 +86,7 @@ def solve_purchase_list(
         )
 
     purchase_list: list[PurchaseLine] = []
-    mineral_totals: dict[int, float] = {mineral: 0.0 for mineral in required_minerals}
+    raw_mineral_totals: dict[int, float] = {mineral: 0.0 for mineral in required_minerals}
     total_volume = 0.0
 
     for type_id, ore in candidate_ores.items():
@@ -98,8 +99,13 @@ def solve_purchase_list(
         purchase_list.append(PurchaseLine(ore_type_id=type_id, quantity=quantity, volume_m3=volume))
 
         for mineral, per_batch_qty in effective_yields[type_id].items():
-            if mineral in mineral_totals:
-                mineral_totals[mineral] += per_batch_qty * batches
+            if mineral in raw_mineral_totals:
+                raw_mineral_totals[mineral] += per_batch_qty * batches
+
+    # EVE always truncates reprocessing output to a whole number of minerals - never fractional.
+    # The tiny epsilon guards against float arithmetic landing just under a whole number
+    # (e.g. 100188.0 computed as 100187.99999999997) and being floored down incorrectly.
+    mineral_totals = {mineral: math.floor(qty + 1e-6) for mineral, qty in raw_mineral_totals.items()}
 
     return PurchaseResult(
         purchase_list=purchase_list,

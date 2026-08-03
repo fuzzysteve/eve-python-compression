@@ -44,7 +44,7 @@ class PurchaseLineResponse(BaseModel):
 class PurchaseListResponse(BaseModel):
     purchase_list: list[PurchaseLineResponse]
     total_volume_m3: float
-    mineral_totals: dict[int, float]
+    mineral_totals: dict[int, int]
 
 
 class OreSummary(BaseModel):

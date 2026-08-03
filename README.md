@@ -91,7 +91,7 @@ Response body:
     { "ore_type_id": 62516, "quantity": 36000, "volume_m3": 36.0 }
   ],
   "total_volume_m3": 36.0,
-  "mineral_totals": { "34": 100188.0 }
+  "mineral_totals": { "34": 100188 }
 }
 ```
 
