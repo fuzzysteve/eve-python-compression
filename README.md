@@ -33,6 +33,18 @@ DB_NAME=eve
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
+### Running as a systemd service (autostart)
+
+An `eve-compression.service` unit file is included. It assumes `uv` is installed at `/root/.local/bin/uv` and depends on `mariadb.service` — adjust both if your setup differs.
+
+```bash
+cp eve-compression.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now eve-compression.service
+```
+
+Check status/logs with `systemctl status eve-compression.service` / `journalctl -u eve-compression.service -f`.
+
 Add `--reload` during development to auto-restart on code changes. Ore/mineral data is loaded from the database once at startup; call `POST /refresh` afterward to reload without restarting the process (e.g. after an SDE update).
 
 ## API

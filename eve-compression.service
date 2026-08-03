@@ -1,0 +1,14 @@
+[Unit]
+Description=EVE Compressed Ore Purchase-List Optimizer
+After=network.target mariadb.service
+Requires=mariadb.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/scripts/compression
+ExecStart=/root/.local/bin/uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
