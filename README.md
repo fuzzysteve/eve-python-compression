@@ -51,7 +51,7 @@ Add `--reload` during development to auto-restart on code changes. Ore/mineral d
 
 ### `POST /purchase-list`
 
-Computes the purchase list. Ore quantities are always whole multiples of 100 (EVE's reprocessing batch size).
+Computes the purchase list. Ore quantities are always whole multiples of that ore's reprocessing batch size (`portion_size` in `GET /ores`) — 100 for ordinary ore, but 1 for compressed ice and gas.
 
 **Everything in this API is identified by EVE typeID — no names are ever accepted or returned.** Callers are expected to maintain their own typeID → name mapping (e.g. from their own copy of `invTypes`) for display purposes.
 

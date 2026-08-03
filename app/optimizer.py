@@ -61,7 +61,8 @@ def solve_purchase_list(
     }
 
     problem += pulp.lpSum(
-        candidate_ores[type_id].volume_m3 * 100 * batch_vars[type_id] for type_id in candidate_ores
+        candidate_ores[type_id].volume_m3 * candidate_ores[type_id].portion_size * batch_vars[type_id]
+        for type_id in candidate_ores
     )
 
     overage = overage or {}
@@ -91,7 +92,7 @@ def solve_purchase_list(
         batches = round(batch_vars[type_id].value() or 0)
         if batches <= 0:
             continue
-        quantity = batches * 100
+        quantity = batches * ore.portion_size
         volume = quantity * ore.volume_m3
         total_volume += volume
         purchase_list.append(PurchaseLine(ore_type_id=type_id, quantity=quantity, volume_m3=volume))
