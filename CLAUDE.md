@@ -19,9 +19,9 @@ Requires a running MySQL instance with the EVE Static Data Export loaded (Fuzzwo
 
 The whole app is four small modules under `app/`, each with one job, wired together in `app/main.py`:
 
-- **`app/sde.py`** — the only place that talks to MySQL. `load_compressed_ore_data()` returns `dict[ore_name -> OreData]` by joining three tables:
+- **`app/sde.py`** — the only place that talks to MySQL. `load_compressed_ore_data()` returns `dict[ore_type_id -> OreData]` by joining three tables. **The whole app is ID-only end to end — no ore/mineral/skill names ever appear in the data model or the API contract**, only EVE typeIDs (ore typeID, mineral typeID, skill typeID). Callers are expected to already have their own typeID -> name mapping (e.g. from their own copy of `invTypes`) if they need to display names.
   - `compressibleTypes(typeID, compressedTypeID)` is the authoritative list of which typeIDs are compressed ore — there is no group/category-based way to identify them.
-  - `invTypeMaterials.quantity` gives reprocessing yield, but **it's the yield for one full 100-unit batch at 100% base yield, not a per-unit value** — this is the single most important non-obvious fact in the codebase and everything downstream depends on getting it right.
+  - `invTypeMaterials.quantity` gives reprocessing yield, keyed by `materialTypeID`, but **it's the yield for one full 100-unit batch at 100% base yield, not a per-unit value** — this is the single most important non-obvious fact in the codebase and everything downstream depends on getting it right.
   - The ore's required reprocessing skill is looked up via `dgmTypeAttributes` (attributeID `790`, `reprocessingSkillType`) on the **raw** ore's typeID (compressed types have this attribute NULL), with the skill typeID stored in `valueFloat` rather than `valueInt`.
   - This data is loaded once at FastAPI startup (`lifespan` in `main.py`) and cached in memory in the module-level `_cache` dict; `POST /refresh` reloads it without restarting the process. There is no periodic polling.
 
@@ -33,6 +33,6 @@ The whole app is four small modules under `app/`, each with one job, wired toget
 
 ### Request contract gotchas
 
-- `allowed_ores` is a list of ore *names* (as returned by `GET /ores`), not typeIDs.
-- `ore_processing_skills` in `ReprocessingInputs` is keyed by **skill typeID** (e.g. `60377` = "Simple Ore Processing"), not by ore name or group — this was an explicit design choice since the skill-to-ore mapping is many-to-one (about a dozen skills cover all ore groups) and only discoverable via the `dgmTypeAttributes` join, not a naming convention.
+- Everything is keyed by typeID, never by name: `required_minerals`/`overage`/`mineral_totals` are keyed by **mineral typeID** (e.g. `34` = Tritanium), `allowed_ores`/`purchase_list[].ore_type_id` use **compressed ore typeID** (as returned by `GET /ores`), and `ore_processing_skills` is keyed by **skill typeID** (e.g. `60377` = "Simple Ore Processing"). None of these are ore/group names — the skill mapping in particular is many-to-one (about a dozen skills cover all ore groups) and only discoverable via the `dgmTypeAttributes` join, not a naming convention.
+- JSON object keys are always strings on the wire (e.g. `{"34": 100000}`), but Pydantic coerces them to `int` for `dict[int, ...]` fields — don't add unnecessary `str()`/`int()` conversion shims for this, it's handled automatically.
 - `overage` and `allowed_ores` are both optional; omitting `overage` for a mineral means unbounded overage is acceptable for it.

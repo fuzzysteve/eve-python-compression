@@ -7,7 +7,7 @@ from app.optimizer import InfeasibleError, PurchaseResult, solve_purchase_list
 from app.reprocessing import ReprocessingInputs
 from app.sde import OreData, get_connection, load_compressed_ore_data
 
-_cache: dict[str, OreData] = {}
+_cache: dict[int, OreData] = {}
 
 
 def _refresh_cache() -> None:
@@ -29,14 +29,14 @@ app = FastAPI(title="Compressed Ore Purchase-List Optimizer", lifespan=lifespan)
 
 
 class PurchaseListRequest(BaseModel):
-    required_minerals: dict[str, float]
-    allowed_ores: list[str] | None = None
-    overage: dict[str, float] | None = None
+    required_minerals: dict[int, float]
+    allowed_ores: list[int] | None = None
+    overage: dict[int, float] | None = None
     reprocessing: ReprocessingInputs
 
 
 class PurchaseLineResponse(BaseModel):
-    ore: str
+    ore_type_id: int
     quantity: int
     volume_m3: float
 
@@ -44,15 +44,15 @@ class PurchaseLineResponse(BaseModel):
 class PurchaseListResponse(BaseModel):
     purchase_list: list[PurchaseLineResponse]
     total_volume_m3: float
-    mineral_totals: dict[str, float]
+    mineral_totals: dict[int, float]
 
 
 class OreSummary(BaseModel):
-    name: str
+    type_id: int
     volume_m3: float
     portion_size: int
     skill_type_id: int | None
-    base_yields: dict[str, int]
+    base_yields: dict[int, int]
 
 
 @app.post("/purchase-list", response_model=PurchaseListResponse)
@@ -70,7 +70,7 @@ def purchase_list(request: PurchaseListRequest) -> PurchaseListResponse:
 
     return PurchaseListResponse(
         purchase_list=[
-            PurchaseLineResponse(ore=line.ore, quantity=line.quantity, volume_m3=line.volume_m3)
+            PurchaseLineResponse(ore_type_id=line.ore_type_id, quantity=line.quantity, volume_m3=line.volume_m3)
             for line in result.purchase_list
         ],
         total_volume_m3=result.total_volume_m3,
@@ -88,7 +88,7 @@ def refresh() -> dict[str, int]:
 def list_ores() -> list[OreSummary]:
     return [
         OreSummary(
-            name=ore.name,
+            type_id=ore.type_id,
             volume_m3=ore.volume_m3,
             portion_size=ore.portion_size,
             skill_type_id=ore.skill_type_id,

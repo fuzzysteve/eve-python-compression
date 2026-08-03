@@ -12,7 +12,7 @@ class InfeasibleError(Exception):
 
 @dataclass
 class PurchaseLine:
-    ore: str
+    ore_type_id: int
     quantity: int
     volume_m3: float
 
@@ -21,21 +21,21 @@ class PurchaseLine:
 class PurchaseResult:
     purchase_list: list[PurchaseLine]
     total_volume_m3: float
-    mineral_totals: dict[str, float]
+    mineral_totals: dict[int, float]
 
 
 def solve_purchase_list(
-    ores: dict[str, OreData],
-    required_minerals: dict[str, float],
-    allowed_ores: list[str] | None,
-    overage: dict[str, float] | None,
+    ores: dict[int, OreData],
+    required_minerals: dict[int, float],
+    allowed_ores: list[int] | None,
+    overage: dict[int, float] | None,
     reprocessing: ReprocessingInputs,
 ) -> PurchaseResult:
     if allowed_ores is not None:
         unknown = set(allowed_ores) - set(ores)
         if unknown:
-            raise InfeasibleError(f"Unknown ore name(s): {', '.join(sorted(unknown))}")
-        candidate_ores = {name: ores[name] for name in allowed_ores}
+            raise InfeasibleError(f"Unknown ore type ID(s): {', '.join(str(t) for t in sorted(unknown))}")
+        candidate_ores = {type_id: ores[type_id] for type_id in allowed_ores}
     else:
         candidate_ores = ores
 
@@ -44,29 +44,30 @@ def solve_purchase_list(
     }
     if unknown_minerals:
         raise InfeasibleError(
-            f"No candidate ore yields the following mineral(s): {', '.join(sorted(unknown_minerals))}"
+            f"No candidate ore yields the following mineral type ID(s): "
+            f"{', '.join(str(m) for m in sorted(unknown_minerals))}"
         )
 
-    effective_yields: dict[str, dict[str, float]] = {}
-    for name, ore in candidate_ores.items():
+    effective_yields: dict[int, dict[int, float]] = {}
+    for type_id, ore in candidate_ores.items():
         multiplier = ore_yield_multiplier(ore.skill_type_id, reprocessing)
-        effective_yields[name] = {mineral: qty * multiplier for mineral, qty in ore.base_yields.items()}
+        effective_yields[type_id] = {mineral: qty * multiplier for mineral, qty in ore.base_yields.items()}
 
     problem = pulp.LpProblem("compressed_ore_purchase", pulp.LpMinimize)
 
     batch_vars = {
-        name: pulp.LpVariable(f"batches_{ore.type_id}", lowBound=0, cat="Integer")
-        for name, ore in candidate_ores.items()
+        type_id: pulp.LpVariable(f"batches_{type_id}", lowBound=0, cat="Integer")
+        for type_id in candidate_ores
     }
 
     problem += pulp.lpSum(
-        candidate_ores[name].volume_m3 * 100 * batch_vars[name] for name in candidate_ores
+        candidate_ores[type_id].volume_m3 * 100 * batch_vars[type_id] for type_id in candidate_ores
     )
 
     overage = overage or {}
     for mineral, min_qty in required_minerals.items():
         total_output = pulp.lpSum(
-            effective_yields[name].get(mineral, 0.0) * batch_vars[name] for name in candidate_ores
+            effective_yields[type_id].get(mineral, 0.0) * batch_vars[type_id] for type_id in candidate_ores
         )
         problem += total_output >= min_qty, f"min_{mineral}"
 
@@ -83,19 +84,19 @@ def solve_purchase_list(
         )
 
     purchase_list: list[PurchaseLine] = []
-    mineral_totals: dict[str, float] = {mineral: 0.0 for mineral in required_minerals}
+    mineral_totals: dict[int, float] = {mineral: 0.0 for mineral in required_minerals}
     total_volume = 0.0
 
-    for name, ore in candidate_ores.items():
-        batches = round(batch_vars[name].value() or 0)
+    for type_id, ore in candidate_ores.items():
+        batches = round(batch_vars[type_id].value() or 0)
         if batches <= 0:
             continue
         quantity = batches * 100
         volume = quantity * ore.volume_m3
         total_volume += volume
-        purchase_list.append(PurchaseLine(ore=name, quantity=quantity, volume_m3=volume))
+        purchase_list.append(PurchaseLine(ore_type_id=type_id, quantity=quantity, volume_m3=volume))
 
-        for mineral, per_batch_qty in effective_yields[name].items():
+        for mineral, per_batch_qty in effective_yields[type_id].items():
             if mineral in mineral_totals:
                 mineral_totals[mineral] += per_batch_qty * batches
 
