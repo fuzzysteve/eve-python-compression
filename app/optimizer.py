@@ -49,10 +49,15 @@ def solve_purchase_list(
             f"{', '.join(str(m) for m in sorted(unknown_minerals))}"
         )
 
-    effective_yields: dict[int, dict[int, float]] = {}
+    # EVE floors reprocessing output to a whole number per batch, per ore - not as a sum
+    # across batches or ore types. Flooring here (rather than on the final accumulated
+    # total) matches that: floor(x) * n batches, not floor(x * n batches).
+    effective_yields: dict[int, dict[int, int]] = {}
     for type_id, ore in candidate_ores.items():
         multiplier = ore_yield_multiplier(ore.skill_type_id, reprocessing)
-        effective_yields[type_id] = {mineral: qty * multiplier for mineral, qty in ore.base_yields.items()}
+        effective_yields[type_id] = {
+            mineral: math.floor(qty * multiplier + 1e-6) for mineral, qty in ore.base_yields.items()
+        }
 
     problem = pulp.LpProblem("compressed_ore_purchase", pulp.LpMinimize)
 
@@ -69,7 +74,7 @@ def solve_purchase_list(
     overage = overage or {}
     for mineral, min_qty in required_minerals.items():
         total_output = pulp.lpSum(
-            effective_yields[type_id].get(mineral, 0.0) * batch_vars[type_id] for type_id in candidate_ores
+            effective_yields[type_id].get(mineral, 0) * batch_vars[type_id] for type_id in candidate_ores
         )
         problem += total_output >= min_qty, f"min_{mineral}"
 
@@ -86,7 +91,7 @@ def solve_purchase_list(
         )
 
     purchase_list: list[PurchaseLine] = []
-    raw_mineral_totals: dict[int, float] = {mineral: 0.0 for mineral in required_minerals}
+    mineral_totals: dict[int, int] = {mineral: 0 for mineral in required_minerals}
     total_volume = 0.0
 
     for type_id, ore in candidate_ores.items():
@@ -99,13 +104,8 @@ def solve_purchase_list(
         purchase_list.append(PurchaseLine(ore_type_id=type_id, quantity=quantity, volume_m3=volume))
 
         for mineral, per_batch_qty in effective_yields[type_id].items():
-            if mineral in raw_mineral_totals:
-                raw_mineral_totals[mineral] += per_batch_qty * batches
-
-    # EVE always truncates reprocessing output to a whole number of minerals - never fractional.
-    # The tiny epsilon guards against float arithmetic landing just under a whole number
-    # (e.g. 100188.0 computed as 100187.99999999997) and being floored down incorrectly.
-    mineral_totals = {mineral: math.floor(qty + 1e-6) for mineral, qty in raw_mineral_totals.items()}
+            if mineral in mineral_totals:
+                mineral_totals[mineral] += per_batch_qty * batches
 
     return PurchaseResult(
         purchase_list=purchase_list,
