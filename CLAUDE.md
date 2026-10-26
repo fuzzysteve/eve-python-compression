@@ -12,6 +12,7 @@ A local-only FastAPI service that computes the minimal-volume set of EVE Online 
 - Run the server: `uv run uvicorn app.main:app --host 127.0.0.1 --port 8000` (add `--reload` for dev)
 - Run any one-off script/REPL against the app code: `uv run python3 -c "..."`
 - No test suite exists yet. There is no lint/format config configured either.
+- Outdated-dependency checks are not run from this repo: the Discord bot's daily `fuzzworkbot-update-check` (`/home/discordbot/src/fuzzworkbot/update_check.py`) checks this project's `.venv` too and posts to Discord. To upgrade: `uv lock --upgrade && uv sync && systemctl restart eve-compression`.
 
 Requires a running MySQL instance with the EVE Static Data Export loaded (Fuzzwork-style schema), reachable via the credentials in `.env` (see `.env.example` for the shape — copy it to `.env` and fill in real values; `.env` is gitignored and must never be committed).
 
