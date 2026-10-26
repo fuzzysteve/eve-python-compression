@@ -61,10 +61,7 @@ def solve_purchase_list(
 
     problem = pulp.LpProblem("compressed_ore_purchase", pulp.LpMinimize)
 
-    batch_vars = {
-        type_id: pulp.LpVariable(f"batches_{type_id}", lowBound=0, cat="Integer")
-        for type_id in candidate_ores
-    }
+    batch_vars = problem.add_variable_dict("batches", candidate_ores, lowBound=0, cat="Integer")
 
     problem += pulp.lpSum(
         candidate_ores[type_id].volume_m3 * candidate_ores[type_id].portion_size * batch_vars[type_id]
@@ -82,9 +79,9 @@ def solve_purchase_list(
             max_qty = min_qty * (1 + overage[mineral])
             problem += total_output <= max_qty, f"max_{mineral}"
 
-    status = problem.solve(pulp.PULP_CBC_CMD(msg=False))
+    stats = problem.solve(pulp.COIN_CMD(msg=False))
 
-    if pulp.LpStatus[status] != "Optimal":
+    if stats.status != pulp.LpSolveStatus.Optimal:
         raise InfeasibleError(
             "No combination of the allowed ores can satisfy the required minerals "
             "within the given overage limits."
