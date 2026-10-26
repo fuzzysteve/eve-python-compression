@@ -6,7 +6,9 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn>=0.32",
-    "pulp>=2.9",
+    # pulp 4 renamed/removed the APIs optimizer.py uses (PULP_CBC_CMD, LpVariable's
+    # lowBound) and stopped bundling CBC; stay on 3.x until optimizer.py is ported.
+    "pulp>=3.3,<4",
     "pymysql>=1.1",
     "python-dotenv>=1.0",
     "pydantic>=2.9",
