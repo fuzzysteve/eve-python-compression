@@ -11,6 +11,15 @@ class InfeasibleError(Exception):
     pass
 
 
+class TooComplexError(Exception):
+    pass
+
+
+# Wall-clock budget for one CBC solve. Requests that need longer are rejected as too
+# complex rather than answered late or with a possibly non-optimal best-so-far.
+SOLVE_TIME_LIMIT_SECONDS = 10
+
+
 @dataclass
 class PurchaseLine:
     ore_type_id: int
@@ -79,8 +88,13 @@ def solve_purchase_list(
             max_qty = min_qty * (1 + overage[mineral])
             problem += total_output <= max_qty, f"max_{mineral}"
 
-    stats = problem.solve(pulp.COIN_CMD(msg=False))
+    stats = problem.solve(pulp.COIN_CMD(msg=False, timeLimit=SOLVE_TIME_LIMIT_SECONDS))
 
+    if stats.status == pulp.LpSolveStatus.TimeLimit:
+        raise TooComplexError(
+            f"This request is too complex to solve within {SOLVE_TIME_LIMIT_SECONDS} seconds. "
+            "Try fewer minerals, a narrower ore selection, or looser overage limits."
+        )
     if stats.status != pulp.LpSolveStatus.Optimal:
         raise InfeasibleError(
             "No combination of the allowed ores can satisfy the required minerals "

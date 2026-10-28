@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from app.optimizer import InfeasibleError, PurchaseResult, solve_purchase_list
+from app.optimizer import InfeasibleError, PurchaseResult, TooComplexError, solve_purchase_list
 from app.reprocessing import ReprocessingInputs
 from app.sde import OreData, get_connection, load_compressed_ore_data
 
@@ -65,7 +65,7 @@ def purchase_list(request: PurchaseListRequest) -> PurchaseListResponse:
             overage=request.overage,
             reprocessing=request.reprocessing,
         )
-    except InfeasibleError as exc:
+    except (InfeasibleError, TooComplexError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     return PurchaseListResponse(
