@@ -126,7 +126,6 @@ def test_refresh_closes_the_connection_when_the_load_fails(ores, monkeypatch):
     assert conn.closed
 
 
-@pytest.mark.xfail(strict=True, reason="_refresh_cache clears the cache before loading, so a failed load empties it")
 def test_failed_refresh_keeps_the_ores_already_loaded(ores, monkeypatch):
     def fail(c):
         raise RuntimeError("db went away")
@@ -136,6 +135,17 @@ def test_failed_refresh_keeps_the_ores_already_loaded(ores, monkeypatch):
     with pytest.raises(RuntimeError):
         main._refresh_cache()
     assert set(main._cache) == set(ores)
+
+
+def test_failed_refresh_is_a_500_and_purchases_still_work(ores, monkeypatch):
+    def fail(c):
+        raise RuntimeError("db went away")
+
+    monkeypatch.setattr(main, "get_connection", FakeConnection)
+    monkeypatch.setattr(main, "load_compressed_ore_data", fail)
+    client = TestClient(main.app, raise_server_exceptions=False)
+    assert client.post("/refresh").status_code == 500
+    assert purchase(client, required_minerals={"34": 1000}).status_code == 200
 
 
 def test_startup_loads_the_cache(monkeypatch):

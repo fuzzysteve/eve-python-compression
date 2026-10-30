@@ -11,10 +11,12 @@ _cache: dict[int, OreData] = {}
 
 
 def _refresh_cache() -> None:
+    global _cache
     conn = get_connection()
     try:
-        _cache.clear()
-        _cache.update(load_compressed_ore_data(conn))
+        # Swapped in whole, so a failed load keeps the current ores and a request running
+        # during a refresh never sees a partial cache.
+        _cache = load_compressed_ore_data(conn)
     finally:
         conn.close()
 
