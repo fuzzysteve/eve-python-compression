@@ -139,8 +139,12 @@ def test_unknown_location_type_is_rejected():
         ReprocessingInputs(location={"type": "citadel"})
 
 
-@pytest.mark.xfail(strict=True, reason="ore_processing_skills levels are documented as 0-5 but not validated")
 @pytest.mark.parametrize("level", [6, -1])
 def test_ore_processing_skill_levels_are_bounded(level):
     with pytest.raises(ValidationError):
         station(ore_processing_skills={SKILL_A: level})
+
+
+@pytest.mark.parametrize("level", [0, 5])
+def test_ore_processing_skill_level_limits_are_allowed(level):
+    assert station(ore_processing_skills={SKILL_A: level}).ore_processing_skills == {SKILL_A: level}

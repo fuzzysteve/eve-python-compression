@@ -74,6 +74,7 @@ def test_too_complex_is_a_422_with_its_own_message(client, monkeypatch):
         {"required_minerals": {"Tritanium": 1}, "reprocessing": STATION},
         {"required_minerals": {"34": 1}, "reprocessing": {"location": {"type": "moon"}}},
         {"required_minerals": {"34": 1}, "reprocessing": {"location": {"type": "structure", "rig_tier": 2}}},
+        {"required_minerals": {"34": 1}, "reprocessing": {**STATION, "ore_processing_skills": {"60377": 6}}},
     ],
 )
 def test_malformed_requests_are_rejected(client, body):

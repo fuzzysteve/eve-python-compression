@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -51,7 +51,9 @@ Location = NpcStationLocation | StructureLocation
 class ReprocessingInputs(BaseModel):
     reprocessing_skill: int = Field(default=0, ge=0, le=5)
     reprocessing_efficiency_skill: int = Field(default=0, ge=0, le=5)
-    ore_processing_skills: dict[int, int] = Field(default_factory=dict, description="skillTypeID -> level (0-5)")
+    ore_processing_skills: dict[int, Annotated[int, Field(ge=0, le=5)]] = Field(
+        default_factory=dict, description="skillTypeID -> level (0-5)"
+    )
     implant_bonus: float = Field(default=0.0)
     location: Location = Field(discriminator="type")
 
